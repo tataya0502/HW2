@@ -45,7 +45,7 @@ function renderTokens() {
     const full = p.cur >= t.max;
     const pct = Math.min(100, Math.round((p.cur / t.max) * 100));
     return `<div class="tok ${full ? "full" : ""}">
-      <div class="name">${label(t.name)}${full ? '<span class="badge">가득 참 · 낭비 중</span>' : ""}</div>
+      <div class="name">${esc(t.displayName || label(t.name))}${full ? '<span class="badge">가득 참 · 낭비 중</span>' : ""}</div>
       <div class="count">${p.cur}<small> / ${t.max}</small></div>
       <div class="bar"><i style="width:${pct}%"></i></div>
       <div class="muted small">${full ? "재생이 멈춘 상태입니다" :

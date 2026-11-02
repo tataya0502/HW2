@@ -25,6 +25,29 @@ class KeyIn(BaseModel):
     api_key: str = Field(min_length=8, max_length=200)
 
 
+# In-game names, matched against the token's full JSON path (lowercased).
+# Order matters: the first match wins, so "bomb" must come before "guildraid".
+TOKEN_NAMES = [
+    ("bomb", "Guild Raid Bomb"),
+    ("onslaught", "Onslaught"),
+    ("guildwar", "Guild War"),
+    ("arena", "Arena"),
+    ("guildraid", "Guild Raid"),
+    ("raid", "Guild Raid"),
+    ("legendary", "Legendary Event"),
+    ("quest", "Quest"),
+    ("energy", "Energy"),
+]
+
+
+def display_name(path: str) -> str:
+    p = path.replace("_", "").lower()
+    for needle, name in TOKEN_NAMES:
+        if needle in p:
+            return name
+    return ""  # frontend falls back to a prettified field name
+
+
 def find_token_buckets(node: Any, path: str = "") -> list[dict]:
     """Recursively find token-like objects (they carry `max` plus a count/regen field).
 
@@ -42,6 +65,7 @@ def find_token_buckets(node: Any, path: str = "") -> list[dict]:
             current = next((node[k] for k in ("current", "count", "amount", "value") if isinstance(node.get(k), (int, float))), 0)
             found.append({
                 "name": path.split(".")[-1] or "token",
+                "displayName": display_name(path),
                 "path": path,
                 "current": current,
                 "max": node["max"],
