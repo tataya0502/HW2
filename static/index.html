@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tacticus 계정 트래커</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">TACTICUS <span>TRACKER</span></div>
+    <div class="note">비공식 팬 프로젝트 · 읽기 전용 API</div>
+  </header>
+
+  <main>
+    <section class="card" id="login">
+      <h1>API 키로 계정 상태 확인</h1>
+      <p class="muted">
+        <a href="https://api.tacticusgame.com/" target="_blank" rel="noopener">api.tacticusgame.com</a>에서
+        <b>Player</b> 권한의 키를 발급받아 입력하세요. 키는 서버에 저장되지 않고 이 탭의 sessionStorage에만 보관됩니다.
+      </p>
+      <form id="form">
+        <input id="key" type="password" autocomplete="off" placeholder="X-API-KEY" required minlength="8">
+        <button id="go" type="submit">계정 불러오기</button>
+      </form>
+      <div id="error" class="error" hidden></div>
+    </section>
+
+    <div id="result" hidden>
+      <section class="card">
+        <div class="head">
+          <div>
+            <h2 id="pname">-</h2>
+            <div class="muted" id="pmeta"></div>
+          </div>
+          <button id="refresh" class="ghost">새로고침</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>토큰 현황</h2>
+        <div id="tokens" class="grid"></div>
+        <p class="muted small">남은 시간은 서버 동기화 시각(lastUpdatedOn)부터 계산한 추정치이며, 게임 서버 캐시 때문에 실제와 몇 분 차이날 수 있습니다.</p>
+      </section>
+
+      <section class="card">
+        <div class="head">
+          <h2>보유 캐릭터 <span id="ucount" class="muted"></span></h2>
+          <input id="filter" type="search" placeholder="이름 / 진영 검색">
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>이름</th><th>진영</th><th>랭크</th><th>레벨</th><th>진행 단계</th><th>랭크업 칸</th></tr></thead>
+            <tbody id="units"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

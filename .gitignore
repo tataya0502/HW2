@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+*.key
+.venv/
+venv/
+*.log
+.pytest_cache/
+.DS_Store
+tacticus-player.json

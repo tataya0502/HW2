@@ -1,0 +1,43 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Syntax check
+        run: python -m py_compile app.py
+      - name: Smoke test (server boots, /health answers)
+        run: |
+          uvicorn app:app --port 8000 &
+          for i in $(seq 1 15); do curl -fs localhost:8000/health && exit 0; sleep 1; done
+          exit 1
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      # Needs repository secrets: SSH_HOST, SSH_USER, SSH_KEY (private key)
+      - name: Pull latest code and restart container on the server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            [ -d ~/hw2 ] || git clone https://github.com/${{ github.repository }}.git ~/hw2
+            cd ~/hw2
+            git fetch origin main && git reset --hard origin/main
+            docker build -t tacticus-tracker .
+            docker rm -f tacticus-tracker 2>/dev/null || true
+            docker run -d --name tacticus-tracker --restart unless-stopped -p 80:8000 tacticus-tracker
