@@ -1,43 +1,67 @@
-name: CI/CD
+name: Deploy latest Docker image to Windows runner
 
+# Runs on the self-hosted runner (your own Windows PC) after the CI workflow
+# has pushed a new image from main.
 on:
-  push:
+  workflow_run:
+    workflows: ["Build and push Docker image"]
+    types: [completed]
     branches: [main]
+  workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -r requirements.txt
-      - name: Syntax check
-        run: python -m py_compile app.py
-      - name: Smoke test (server boots, /health answers)
-        run: |
-          uvicorn app:app --port 8000 &
-          for i in $(seq 1 15); do curl -fs localhost:8000/health && exit 0; sleep 1; done
-          exit 1
-
   deploy:
-    needs: test
-    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: [self-hosted, Windows]
+    env:
+      IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/tacticus-tracker:latest
+      CONTAINER: tacticus-tracker
+      HOST_PORT: "8080"
     steps:
-      # Needs repository secrets: SSH_HOST, SSH_USER, SSH_KEY (private key)
-      - name: Pull latest code and restart container on the server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -e
-            [ -d ~/hw2 ] || git clone https://github.com/${{ github.repository }}.git ~/hw2
-            cd ~/hw2
-            git fetch origin main && git reset --hard origin/main
-            docker build -t tacticus-tracker .
-            docker rm -f tacticus-tracker 2>/dev/null || true
-            docker run -d --name tacticus-tracker --restart unless-stopped -p 80:8000 tacticus-tracker
+      - name: Add per-user Docker Desktop CLI to PATH
+        shell: powershell
+        run: |
+          $dirs = @(
+            "$env:ProgramFiles\Docker\Docker\resources\bin",
+            "$env:LOCALAPPDATA\Programs\Docker\Docker\resources\bin"
+          )
+          foreach ($d in $dirs) {
+            if (Test-Path $d) { Add-Content -Path $env:GITHUB_PATH -Value $d }
+          }
+
+      - name: Verify Docker is installed and the engine is running
+        shell: powershell
+        run: |
+          docker version
+          docker info | Out-Null
+
+      - name: Log in to Docker Hub
+        shell: powershell
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          $env:DOCKERHUB_TOKEN | docker login -u $env:DOCKERHUB_USERNAME --password-stdin
+
+      - name: Pull latest image
+        shell: powershell
+        run: docker pull $env:IMAGE
+
+      - name: Replace running app container
+        shell: powershell
+        run: |
+          if (docker ps -aq -f "name=^$env:CONTAINER$") { docker rm -f $env:CONTAINER }
+          docker run -d --name $env:CONTAINER --restart unless-stopped -p "$($env:HOST_PORT):8000" $env:IMAGE
+
+      - name: Verify the service responds
+        shell: powershell
+        run: |
+          $url = "http://127.0.0.1:$($env:HOST_PORT)/health"
+          for ($i = 0; $i -lt 30; $i++) {
+            try {
+              $r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 3
+              if ($r.StatusCode -eq 200) { Write-Output "OK: $url -> 200 ($($r.Content))"; exit 0 }
+            } catch { Start-Sleep -Seconds 1 }
+          }
+          Write-Error "Service did not answer at $url"
+          exit 1

@@ -26,10 +26,22 @@ python -m uvicorn app:app --host 127.0.0.1 --port 8000
 ```
 브라우저에서 http://127.0.0.1:8000 접속 → https://api.tacticusgame.com/ 에서 발급한 **Player** 권한 키 입력.
 
-## 자동 배포 설정
-1. Docker가 설치된 Linux 서버(VM)를 준비하고 80 포트를 엽니다.
-2. GitHub 저장소 → Settings → Secrets and variables → Actions에 등록: `SSH_HOST`, `SSH_USER`, `SSH_KEY`(개인키 전체).
-3. 코드를 수정하고 `git push origin main` → Actions 탭에서 test → deploy 진행 확인 → `http://서버IP` 접속.
+## CI/CD (Docker + GitHub Actions + self-hosted runner)
+```
+git push → [CI] ci.yml: 문법 검사 → Docker 이미지 빌드 → Docker Hub push (latest, 커밋 SHA 태그)
+        → [CD] deploy.yml: 내 PC의 self-hosted runner가 이미지 pull → 기존 컨테이너 교체 → /health 확인
+```
+| 파일 | 역할 |
+| --- | --- |
+| `.github/workflows/ci.yml` | 모든 브랜치 push 시 이미지 빌드·Docker Hub 업로드 |
+| `.github/workflows/deploy.yml` | CI 성공(main) 후 runner에서 컨테이너 교체 |
+
+### 설정 순서
+1. Docker Desktop 설치, Docker Hub 가입 → Account settings → Personal access tokens → **Repo Read & Write** 토큰 생성
+2. GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
+3. 저장소 → Settings → Actions → Runners → New self-hosted runner(Windows) 안내대로 설치 후 `./run.cmd`를 **계속 켜둠**
+4. 코드 수정 → `git push origin main` → Actions 탭에서 CI → Deploy가 초록색인지 확인
+5. http://127.0.0.1:8080 접속 (컨테이너 8000 → 호스트 8080)
 
 ## 알려진 한계
 - 토큰 필드의 정확한 JSON 경로는 공식 문서에 직접 접근하지 못해 다른 공개 프로젝트를 참고했습니다. 실제 키로 확인이 필요합니다.
