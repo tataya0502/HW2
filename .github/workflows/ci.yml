@@ -18,6 +18,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Temporary diagnostic: prints only whether each secret is set (never its value).
+      - name: Check Docker Hub secrets are set
+        env:
+          U: ${{ secrets.DOCKERHUB_USERNAME }}
+          T: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          [ -n "$U" ] && echo "DOCKERHUB_USERNAME: set (${#U} chars)" || echo "DOCKERHUB_USERNAME: EMPTY"
+          [ -n "$T" ] && echo "DOCKERHUB_TOKEN: set (${#T} chars)" || echo "DOCKERHUB_TOKEN: EMPTY"
+
       # Repository secrets required: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
